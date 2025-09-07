@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Habit Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 p-6">
+  <h1 class="text-3xl font-bold mb-4">🗓️ Habit Tracker</h1>
+
+  <div class="mb-4">
+    <input id="habitName" type="text" placeholder="New Habit" class="border p-2 rounded"/>
+    <button onclick="addHabit()" class="bg-blue-500 text-white px-4 py-2 rounded">Add</button>
+  </div>
+
+  <div id="habits" class="space-y-4"></div>
+
+  <script>
+    const API = "http://localhost:4000";
+
+    async function fetchHabits() {
+      const res = await fetch(API + "/habits");
+      const habits = await res.json();
+      renderHabits(habits);
+    }
+
+    async function addHabit() {
+      const name = document.getElementById("habitName").value;
+      await fetch(API + "/habits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name })
+      });
+      fetchHabits();
+    }
+
+    async function toggleDay(id, date, done) {
+      await fetch(`${API}/habits/${id}/mark`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date, done })
+      });
+      fetchHabits();
+    }
+
+    function renderHabits(habits) {
+      const container = document.getElementById("habits");
+      container.innerHTML = "";
+
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = today.getMonth();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      habits.forEach(habit => {
+        const div = document.createElement("div");
+        div.className = "bg-white p-4 rounded shadow";
+
+        let html = `<h2 class="font-bold mb-2">${habit.name}</h2><div class="grid grid-cols-7 gap-2">`;
+
+        for (let day = 1; day <= daysInMonth; day++) {
+          const date = `${year}-${month+1}-${day}`;
+          const done = habit.days && habit.days[date];
+          html += `
+            <button onclick="toggleDay('${habit._id}', '${date}', ${!done})"
+              class="p-2 rounded ${done ? 'bg-green-500 text-white' : 'bg-gray-200'}">
+              ${day}
+            </button>`;
+        }
+        html += "</div>";
+        div.innerHTML = html;
+        container.appendChild(div);
+      });
+    }
+
+    fetchHabits();
+  </script>
+</body>
+</html>
