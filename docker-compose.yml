@@ -1,3 +1,4 @@
+version: "3.9"
 services:
   backend:
     build:
@@ -7,16 +8,20 @@ services:
       - "4000:4000"
     depends_on:
       - mongo
+    # environment:
+      # Optional: uncomment and set to enable email notifications
+      # USER_EMAIL: "your-email@gmail.com"
+      # USER_PASS: "your-app-password"
 
   frontend:
     image: nginx:alpine
-    volumes:
-      - ./frontend:/usr/share/nginx/html:ro
     ports:
       - "3000:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
 
   mongo:
-    image: mongo
+    image: mongo:8
     volumes:
       - mongo_data:/data/db
 

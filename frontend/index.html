@@ -1,79 +1,191 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Habit Tracker</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-100 text-gray-800 p-6">
-  <h1 class="text-3xl font-bold mb-4">🗓️ Habit Tracker</h1>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Habit Tracker — Calendar</title>
 
-  <div class="mb-4">
-    <input id="habitName" type="text" placeholder="New Habit" class="border p-2 rounded"/>
-    <button onclick="addHabit()" class="bg-blue-500 text-white px-4 py-2 rounded">Add</button>
+  <!-- Chart.js for pie chart -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root{
+      --bg:#07070a;
+      --card:#0f0f14;
+      --muted:#9ca3af;
+      --accent:#9b7bff;
+      --accent-2:#7c3aed;
+      --green:#22c55e;
+      --red:#ef4444;
+      --blue:#3b82f6;
+      --glass: rgba(255,255,255,0.03);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: linear-gradient(180deg,#05050a,#0b0b10 60%);
+      color:#e6e6e9;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+    }
+
+    .wrap { max-width:1200px; margin:20px auto; padding:18px; }
+
+    header.topbar{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:center;
+      margin-bottom:16px;
+    }
+    .title {
+      display:flex;
+      flex-direction:column;
+    }
+    h1 { margin:0; font-size:20px; }
+    .title .sub { color:var(--muted); font-size:13px; margin-top:6px; }
+
+    .controls {
+      display:flex;
+      gap:14px;
+      align-items:center;
+    }
+
+    .month-nav { display:flex; gap:8px; align-items:center; }
+    .month-nav button { padding:8px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.04); background:transparent; color:var(--muted); cursor:pointer; }
+
+    .summary {
+      display:flex;
+      gap:12px;
+      align-items:center;
+      background:var(--card);
+      padding:10px;
+      border-radius:10px;
+      border:1px solid rgba(255,255,255,0.03);
+    }
+    .avg { font-weight:700; }
+    canvas { display:block; }
+
+    .add-area {
+      display:flex;
+      gap:8px;
+      margin-bottom:14px;
+      align-items:center;
+    }
+    .add-area input[type="text"], .add-area input[type="number"] {
+      padding:10px;
+      border-radius:8px;
+      border:1px solid rgba(255,255,255,0.03);
+      background:transparent;
+      color:inherit;
+      min-width:160px;
+    }
+    .btn { background:linear-gradient(90deg,var(--accent),var(--accent-2)); color:#07070a; border:none; padding:10px 12px; border-radius:10px; cursor:pointer; font-weight:600; }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap:10px;
+    }
+
+    .day {
+      background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02));
+      padding:12px;
+      border-radius:12px;
+      min-height:150px;
+      border:1px solid rgba(255,255,255,0.03);
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    .date { font-weight:700; color:var(--muted); font-size:13px; }
+
+    .habit-pill {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      padding:8px;
+      border-radius:8px;
+      font-size:13px;
+      cursor:pointer;
+      transition:transform .08s;
+      background: rgba(255,255,255,0.02);
+    }
+    .habit-pill:hover { transform: translateY(-3px); }
+
+    .pill-left { display:flex; flex-direction:column; gap:4px; overflow:hidden; }
+    .pill-name { font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:240px; }
+    .pill-meta { color:var(--muted); font-size:12px; }
+
+    .pill-right { display:flex; align-items:center; gap:8px; }
+
+    .pill-delete { background:transparent; border:1px solid rgba(255,255,255,0.03); color:var(--muted); padding:6px; border-radius:8px; cursor:pointer; }
+
+    /* state classes */
+    .done { background: linear-gradient(90deg, rgba(34,197,94,0.95), rgba(16,185,129,0.9)); color:#042; }
+    .missed { background: linear-gradient(90deg, rgba(239,68,68,0.95), rgba(220,38,38,0.9)); color:#140; }
+    .today { background: linear-gradient(90deg, rgba(59,130,246,0.95), rgba(37,99,235,0.9)); color:#021; }
+    .future { background: rgba(255,255,255,0.02); color:var(--muted); }
+    .disabled { background: rgba(0,0,0,0.12); color:rgba(255,255,255,0.28); text-decoration:line-through; cursor:not-allowed; }
+
+    .bottom-row { display:flex; justify-content:space-between; align-items:center; margin-top:14px; color:var(--muted); font-size:13px; }
+
+    /* responsiveness */
+    @media (max-width:1000px) {
+      .calendar-grid{ grid-template-columns: repeat(4, 1fr); }
+    }
+    @media (max-width:600px) {
+      header.topbar { flex-direction:column; align-items:flex-start; gap:10px; }
+      .calendar-grid{ grid-template-columns: repeat(2, 1fr); }
+      .pill-name { max-width:140px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="topbar">
+      <div class="title">
+        <h1><span style="color:var(--accent)">Habit</span> Calendar</h1>
+        <div class="sub" id="greeting">Hi — here’s your progress</div>
+      </div>
+
+      <div class="controls">
+        <div class="month-nav">
+          <button id="prevMonth" title="Previous month">◀</button>
+          <div id="monthLabel" style="min-width:160px; text-align:center; font-weight:700"></div>
+          <button id="nextMonth" title="Next month">▶</button>
+        </div>
+
+        <div class="summary" title="Monthly overview">
+          <div style="width:72px; height:72px;">
+            <canvas id="overviewChart" width="72" height="72"></canvas>
+          </div>
+          <div>
+            <div class="avg" id="avgProgress">Avg: 0%</div>
+            <div style="color:var(--muted); font-size:12px" id="habCount">0 habits</div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <section class="add-area">
+      <input id="habitName" type="text" placeholder="Habit name (e.g., Drink water)" />
+      <input id="startDay" type="number" min="1" max="31" placeholder="Start day (1-31)" style="width:110px"/>
+      <input id="goal" type="text" placeholder="Goal (optional)" />
+      <button id="addHabitBtn" class="btn">Add Habit</button>
+    </section>
+
+    <section class="calendar-area">
+      <div id="calendarGrid" class="calendar-grid"></div>
+      <div class="bottom-row">
+        <div id="legend">Legend: <span style="color:var(--green)">●</span> Done • <span style="color:var(--blue)">●</span> Today • <span style="color:var(--red)">●</span> Missed</div>
+        <div style="color:var(--muted); font-size:13px">Tip: Click a habit pill to toggle done/missed</div>
+      </div>
+    </section>
   </div>
 
-  <div id="habits" class="space-y-4"></div>
-
-  <script>
-    const API = "http://localhost:4000";
-
-    async function fetchHabits() {
-      const res = await fetch(API + "/habits");
-      const habits = await res.json();
-      renderHabits(habits);
-    }
-
-    async function addHabit() {
-      const name = document.getElementById("habitName").value;
-      await fetch(API + "/habits", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name })
-      });
-      fetchHabits();
-    }
-
-    async function toggleDay(id, date, done) {
-      await fetch(`${API}/habits/${id}/mark`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, done })
-      });
-      fetchHabits();
-    }
-
-    function renderHabits(habits) {
-      const container = document.getElementById("habits");
-      container.innerHTML = "";
-
-      const today = new Date();
-      const year = today.getFullYear();
-      const month = today.getMonth();
-      const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-      habits.forEach(habit => {
-        const div = document.createElement("div");
-        div.className = "bg-white p-4 rounded shadow";
-
-        let html = `<h2 class="font-bold mb-2">${habit.name}</h2><div class="grid grid-cols-7 gap-2">`;
-
-        for (let day = 1; day <= daysInMonth; day++) {
-          const date = `${year}-${month+1}-${day}`;
-          const done = habit.days && habit.days[date];
-          html += `
-            <button onclick="toggleDay('${habit._id}', '${date}', ${!done})"
-              class="p-2 rounded ${done ? 'bg-green-500 text-white' : 'bg-gray-200'}">
-              ${day}
-            </button>`;
-        }
-        html += "</div>";
-        div.innerHTML = html;
-        container.appendChild(div);
-      });
-    }
-
-    fetchHabits();
-  </script>
+  <script src="script.js"></script>
 </body>
 </html>
